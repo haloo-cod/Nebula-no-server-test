@@ -1,239 +1,28 @@
-# 项目架构总览
+# 架构
 
-## 概述
+Starlit Blog 是一个 Vue 3 SPA 与 Node.js API 组成的模板。API 使用 Hono 的 Web 标准 `fetch` 接口，因此业务层不依赖 Vercel：同一套代码可以部署到 Vercel Functions、Cloudflare Workers、普通 Node 服务器或其他兼容运行时。
 
-Starlit Blog 是一个基于 **Vue 3 + FastAPI** 的全栈个人博客系统，前端采用液态玻璃（Liquid Glass）视觉风格，后端提供 RESTful API + SQLite 持久化。项目设计为开源模板，支持快速部署和二次开发。
-
-## 技术栈
-
-### 前端 (`blog-frontend/`)
-
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Vue 3 | 3.5+ | UI 框架（Composition API + `<script setup>`） |
-| TypeScript | strict 模式 | 类型安全 |
-| Vite | 8 | 构建工具 |
-| Vue Router | 5 | 路由（HTML5 History 模式） |
-| Pinia | 3 | 状态管理 |
-| Tailwind CSS | v4 | 样式（CSS-first 配置，`@tailwindcss/vite` 插件） |
-| marked | v18 | Markdown 渲染 |
-| highlight.js | — | 代码高亮（12 种语言按需注册） |
-| epubjs | — | EPUB 阅读器 |
-| lunar-typescript | — | 中国农历数据 |
-
-### 后端 (`blog-backend/`)
-
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Python | ≥3.11 | 运行时 |
-| FastAPI | — | Web 框架 |
-| SQLAlchemy | 2.0+ (async) | ORM |
-| aiosqlite | — | SQLite 异步驱动 |
-| Pydantic | v2 | 数据验证/序列化 |
-| python-jose | — | JWT 认证 |
-| bcrypt | — | 密码哈希 |
-| Pillow | — | 图片处理（尺寸检测） |
-| ebooklib | — | EPUB 元数据提取 |
-| filelock | — | JSON 文件并发保护 |
-
-### 数据存储
-
-| 存储方式 | 内容 |
-|----------|------|
-| SQLite (`blog.db`) | 结构化数据（博文/图书/相册/友链/藏宝阁/背景图/轮播/个人资料/酒馆留言等） |
-| JSON 文件 (`data/`) | 说说（moments）、评论（comments） — filelock 并发保护 |
-| 文件系统 (`uploads/`) | 图片/EPUB/静态资源 |
-| 文件系统 (`content/`) | Markdown 原文（博文/展览/关于页） |
-
-## 前端特色实现
-
-### Liquid Glass
-
-液态玻璃不是简单地给每个面板添加 `backdrop-filter`。前端通过共享的 WebGL 渲染器，将多个 `LiquidGlass` 组件统一调度到一条渲染管线中。这里的“单一实例”指共享一个 WebGL context 和 renderer singleton，并不是页面只能有一个玻璃面板。每个面板仍然拥有独立的 canvas、尺寸、uniform 状态和背景纹理引用。
-
-渲染器负责统一管理 WebGL 初始化、shader、纹理缓存、动画帧、实例注册以及 context 丢失恢复；组件本身只负责生命周期、尺寸同步、主题参数和交互轨迹。完整说明见 [`frontend-features.md`](frontend-features.md)。
-
-### EPUB Reader
-
-图书页面通过后端 API 获取分页元数据和受保护的 EPUB 资源，阅读器页面使用 `epubjs` 创建 EPUB 实例与 rendition，支持目录导航、分页/滚动模式、CFI 位置恢复、阅读主题、字体缩放和滚动到底自动切换章节。前端 `import.meta.glob()` 仅保留本地 UI 预览 fallback，不是生产图书资源的主要来源。完整说明见 [`frontend-features.md`](frontend-features.md)。
-
-## 目录结构
-
-```
-My_blog/
-├── blog-frontend/                 # Vue 3 前端 SPA
-│   ├── src/
-│   │   ├── api/                   # 后端 API 调用层
-│   │   ├── assets/                # 静态资源（图片/CSS/Markdown）
-│   │   ├── components/            # 共享组件
-│   │   │   ├── liquid-glass/      # 液态玻璃 WebGL 渲染器
-│   │   │   ├── panels/            # 首页面板组件
-│   │   │   ├── music/             # 音乐播放器
-│   │   │   └── study/             # 自习室组件
-│   │   ├── composables/           # 可复用逻辑（useTypewriter/useMusic 等）
-│   │   ├── data/                  # 静态数据层（fallback + site-text）
-│   │   ├── i18n/                  # 国际化
-│   │   ├── router/                # 路由配置
-│   │   ├── stores/                # Pinia 状态管理
-│   │   ├── types/                 # TypeScript 类型定义
-│   │   ├── utils/                 # 工具函数
-│   │   ├── views/                 # 页面视图（按路由分文件夹）
-│   │   ├── App.vue                # 根组件
-│   │   ├── main.ts                # 入口
-│   │   └── env.d.ts               # 全局类型声明
-│   ├── public/
-│   ├── index.html
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── package.json
-│
-├── blog-backend/                  # FastAPI 后端
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── deps.py            # 公共依赖（认证/鉴权）
-│   │   │   └── v1/               # v1 版本路由
-│   │   │       ├── router.py      # 路由汇总
-│   │   │       ├── auth.py        # 认证（登录/注册）
-│   │   │       ├── posts.py       # 博文 CRUD
-│   │   │       ├── moments.py     # 说说
-│   │   │       ├── comments.py    # 评论
-│   │   │       ├── books.py       # 图书（分页+搜索）
-│   │   │       ├── gallery.py     # 展览
-│   │   │       ├── albums.py      # 相册
-│   │   │       ├── images.py      # 图床
-│   │   │       ├── backgrounds.py # 背景图
-│   │   │       ├── carousel.py    # 首页轮播
-│   │   │       ├── friends.py     # 友链
-│   │   │       ├── treasures.py   # 藏宝阁
-│   │   │       ├── profile.py     # 个人资料
-│   │   │       ├── tavern.py      # 深夜酒馆
-│   │   │       ├── users.py       # 用户管理
-│   │   │       ├── analytics.py   # 访问统计
-│   │   │       ├── content_stats.py # 内容统计
-│   │   │       ├── files.py       # 文件管理与下载
-│   │   │       └── about.py       # 关于页内容
-│   │   ├── models/                # SQLAlchemy ORM 模型
-│   │   ├── schemas/               # Pydantic 请求/响应模型
-│   │   ├── services/              # 业务逻辑层
-│   │   ├── utils/                 # 工具（security.py — JWT/bcrypt）
-│   │   ├── config.py              # 全局配置
-│   │   ├── database.py            # 数据库引擎
-│   │   └── main.py                # FastAPI 入口
-│   ├── scripts/                   # 初始化/迁移脚本
-│   ├── content/                   # Markdown 内容
-│   ├── data/                      # JSON 数据（说说/评论/友链）
-│   ├── uploads/                   # 上传文件
-│   └── requirements.txt
-│
-├── docs/                          # 项目文档
-└── AGENTS.md                      # AI 开发助手指令文件
+```text
+blog-frontend/              Vue 3 + Vite 静态站点
+blog-node/src/app.ts        Hono 应用（平台无关）
+api/[...path].ts            Vercel 适配器
+blog-node/src/server.ts     Node HTTP 适配器
+blog-node/migrations/       可选 PostgreSQL 迁移
+content/                    GitHub Markdown/JSON 内容仓库
 ```
 
-## 核心设计理念
+## 数据边界
 
-### 1. 渐进式 API 迁移
+- GitHub 保存 Markdown 文章/展览，以及友链、资料、图书元数据、相册、背景、轮播和藏宝阁 JSON。
+- Cloudflare R2 保存 EPUB、图片、视频和其他大文件。
+- PostgreSQL 只作为可选互动数据层，保存账号、评论、会话和自建统计明细。
+- 前端静态模式读取仓库中的构建内容与 R2 公共 URL，不需要 API 或数据库。
+- Serverless 请求不写本地磁盘，也不在请求期间执行数据库迁移。
 
-前端所有页面都采用 **API + Fallback** 双层数据策略：
+## 适配器
 
-```
-onMounted → 调用后端 API → 成功则使用 API 数据
-                          → 失败则保留本地静态数据（import.meta.glob / 硬编码）
-```
+`blog-node/src/app.ts` 导出标准 `fetch` 应用。`api/[...path].ts` 只负责 Vercel 适配，`src/server.ts` 只负责本地 Node 监听；迁移到其他平台时只需替换最外层适配器。
 
-这意味着：
-- **前端可以独立运行**（不启动后端也能展示内容）
-- **后端挂了不影响用户体验**（静默降级到静态数据）
-- 通过 `VITE_USE_API=false` 环境变量可彻底禁用 API 调用
+## API 契约
 
-### 2. 页面文案集中管理
-
-所有页面的 kicker/title/subtitle 统一在 `src/data/site-text.ts` 中定义，修改文案只需编辑一个文件。未来可对接后端 SiteConfig API 实现管理员后台热更新。
-
-### 3. 认证体系
-
-- **统一账户**：支持用户名/邮箱密码注册和登录；是否需要邮箱验证由后端配置决定
-- **访问令牌**：短期 JWT 访问令牌保存在前端 `localStorage`，API 客户端在 401 时尝试刷新
-- **刷新会话**：后端通过 HttpOnly Refresh Cookie 保存可轮换、可撤销的刷新会话
-- **邮箱验证**：可选的邮箱验证流程，验证链接由后端签发并跳转到前端确认页
-- **GitHub OAuth**：通过 state 校验和 HttpOnly Cookie 保护 OAuth 回调流程
-- **管理员权限**：用户模型包含 `is_admin`、`is_active` 等状态，后台接口统一使用管理员依赖鉴权
-
-### 4. 部署友好
-
-- 前端：HTML5 History 模式 + `base: '/'`，由 Nginx SPA fallback 支持深层页面刷新
-- 后端：SQLite 零配置，上线只需部署单个 Python 进程
-- 未来可平滑迁移到 PostgreSQL（只改 `DATABASE_URL`）
-
-## 路由表
-
-| 路径 | 页面 | 说明 |
-|------|------|------|
-| `/` | 首页 | 个人资料面板 + 轮播 + 仪表盘 |
-| `/blog` | 博文列表 | 玻璃卡片网格 + 分页 |
-| `/post/:slug` | 博文详情 | Markdown 渲染 + 评论 |
-| `/archive` | 归档 | 时间线 + 拖拽交互 |
-| `/archive/tree` | 归档树 | 树形年月结构 |
-| `/moments` | 说说 | 瀑布流 + 无限滚动 |
-| `/books` | 书库 | 玻璃书格 + 搜索 + 分页 |
-| `/books/read/:slug` | 阅读器 | EPUB 全屏阅读 |
-| `/images` | 图片/相册 | 相册网格 → 瀑布流 → 灯箱 |
-| `/gallery` | 展览 | 项目卡片 |
-| `/gallery/project/:slug` | 项目详情 | Markdown 文档 |
-| `/friends` | 友链 | 鱼缸动画 + 链接卡片 |
-| `/treasure` | 藏宝阁 | 分类筛选 + 分页 |
-| `/about` | 关于 | 个人介绍 + 活动热力图 + 时间线 |
-| `/midnight-tavern` | 深夜酒馆 | 登录后留言页（隐藏导航栏） |
-| `/study-room` | 自习室 | 番茄钟 + 日程 + 历史（localStorage） |
-| `/login` | 登录 | 用户名/邮箱密码登录或 GitHub OAuth |
-| `/register` | 注册 | 用户注册与可选邮箱验证 |
-| `/auth/callback` | OAuth 回调 | 恢复 GitHub 登录会话 |
-| `/verify-email` | 邮箱验证 | 确认邮箱验证令牌 |
-
-## 管理后台路由
-
-管理后台统一使用 `/admin` 前缀，由 `AdminLayout` 提供侧边栏和顶栏，并通过 `requiresAuth`、`requiresAdmin` 路由元信息限制访问。
-
-| 路径 | 功能 |
-|------|------|
-| `/admin/login` | 管理员登录 |
-| `/admin/dashboard` | 数据仪表盘 |
-| `/admin/analytics/visitors` | 访问记录 |
-| `/admin/posts` | 文章管理与 Markdown 编辑 |
-| `/admin/moments` | 说说管理 |
-| `/admin/books` | 图书管理 |
-| `/admin/files` | 文件管理 |
-| `/admin/comments` | 评论管理 |
-| `/admin/gallery` | 展览管理 |
-| `/admin/albums` | 相册管理 |
-| `/admin/friends` | 友链管理 |
-| `/admin/treasures` | 藏宝阁管理 |
-| `/admin/tavern` | 深夜酒馆管理 |
-| `/admin/carousel` | 首页轮播管理 |
-| `/admin/backgrounds` | 背景图管理 |
-| `/admin/about` | 关于页管理 |
-| `/admin/users` | 用户管理 |
-| `/admin/profile` | 个人资料管理 |
-| `/admin/site` | 站点配置管理 |
-
-## 功能模块状态
-
-| 模块 | 后端 API | 前端对接 | 管理后台 |
-|------|:---:|:---:|:---:|
-| 博文 | ✅ | ✅ | ✅ |
-| 评论 | ✅ | ✅ | ✅ |
-| 说说 | ✅ | ✅ | ✅ |
-| 图书 | ✅（含搜索分页） | ✅ | ✅ |
-| 展览 | ✅ | ✅ | ✅ |
-| 相册 | ✅ | ✅ | ✅ |
-| 友链 | ✅ | ✅ | ✅ |
-| 藏宝阁 | ✅ | ✅ | ✅ |
-| 背景图 | ✅ | ✅ | ✅ |
-| 轮播图 | ✅ | ✅ | ✅ |
-| 个人资料 | ✅ | ✅ | ✅ |
-| 深夜酒馆 | ✅（含 IP 限频） | ✅ | ✅ |
-| 图床/文件 | ✅ | ✅（文件下载） | ✅ |
-| 自习室 | —（localStorage） | ✅ | — |
-| 用户系统 | ✅ | ✅ | ✅（用户管理） |
-| 访问统计 | ✅ | ✅（自动记录公开导航） | ✅（仪表盘/访客列表） |
-| 站点配置 | 部分实现 | 部分使用 | ✅（配置页面） |
-| 管理后台 | ✅（按模块提供管理接口） | ✅ | ✅ |
+前端继续使用 `/api/v1` 路径。GitHub 模式不配置数据库也能运行内容站点；需要账号、评论或自建统计时，再启用 PostgreSQL 或替换为 Supabase、Giscus、Plausible 等外部服务。

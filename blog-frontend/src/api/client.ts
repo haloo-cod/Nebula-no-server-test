@@ -5,17 +5,22 @@
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL
 
+/** 内容来源：static 适合 Vercel 等静态托管，api 保留现有后端模式。 */
+export const CONTENT_MODE = import.meta.env.VITE_CONTENT_MODE === 'static' ? 'static' : 'api'
+
 /**
  * API 根地址。
  *
- * - 开发期默认直连 localhost:8000；如启用上面的 Vite 代理，可将
+ * - 开发期默认直连 localhost:8787；如启用上面的 Vite 代理，可将
  *   VITE_API_BASE_URL 设为空字符串，让请求走同源代理，方便局域网预览。
  * - 生产或直连部署：在 .env 中填写完整的后端地址（如 https://api.example.com）。
  */
 export const BASE_URL =
   configuredBaseUrl !== undefined && configuredBaseUrl !== ''
     ? configuredBaseUrl.replace(/\/+$/, '')
-    : ''
+    : import.meta.env.DEV
+      ? 'http://localhost:8787'
+      : ''
 const TOKEN_KEY = 'blog_admin_token'
 
 /**
@@ -23,7 +28,7 @@ const TOKEN_KEY = 'blog_admin_token'
  * 设为 'false' 时所有 API 请求自动失败，触发各页面的 fallback 逻辑
  * 默认为 true（启用 API）
  */
-export const USE_API = import.meta.env.VITE_USE_API !== 'false'
+export const USE_API = CONTENT_MODE === 'api' && import.meta.env.VITE_USE_API !== 'false'
 
 /** 将后端相对路径补全为完整 URL（图片/文件等静态资源） */
 export function resolveUrl(url: string): string {

@@ -109,7 +109,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import PanelFallbackGlass from '@/components/panels/PanelFallbackGlass.vue'
 import LiquidGlass from '@/components/liquid-glass/LiquidGlass.vue'
-import { getBooks } from '@/data/books'
+import { getBooks, loadStaticBooks } from '@/data/books'
 import { fetchBooks, type BookSort } from '@/api/books'
 import { siteText } from '@/data/site-text'
 import { useUIStore } from '@/stores/ui'
@@ -128,6 +128,21 @@ const loading = ref(false)
 async function loadBooks() {
   loading.value = true
   try {
+    if (import.meta.env.VITE_CONTENT_MODE === 'static' || import.meta.env.VITE_USE_API === 'false') {
+      const allBooks = await loadStaticBooks()
+      const q = searchQuery.value.trim().toLowerCase()
+      const filtered = q
+        ? allBooks.filter(
+            (b) => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q),
+          )
+        : [...allBooks]
+      if (sortMode.value === 'newest') filtered.sort((a, b) => b.slug.localeCompare(a.slug))
+      if (sortMode.value === 'oldest') filtered.sort((a, b) => a.slug.localeCompare(b.slug))
+      totalBooks.value = filtered.length
+      const start = (currentPage.value - 1) * PAGE_SIZE
+      books.value = filtered.slice(start, start + PAGE_SIZE)
+      return
+    }
     const resp = await fetchBooks(currentPage.value, PAGE_SIZE, searchQuery.value, sortMode.value)
     books.value = resp.items
     totalBooks.value = resp.total

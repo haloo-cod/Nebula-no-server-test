@@ -4,7 +4,7 @@
 
 `blog-frontend/` — Vue 3 + Vite blog frontend SPA with Vue Router, Pinia, and Tailwind CSS v4. Written in **TypeScript** (`<script setup lang="ts">`). Static Markdown loaded via `import.meta.glob`.
 
-`blog-backend/` — Python FastAPI scaffold (bare-bones, not wired to the frontend yet).
+`blog-node/` — Hono + TypeScript API，使用 PostgreSQL 和 Cloudflare R2，支持 Serverless 与普通 Node 服务器。
 
 Non-project dirs: `.codegraph/` (code intelligence index), `.agents/` (skill definitions), `示例代码/` (reference examples, ignore).
 
@@ -102,7 +102,7 @@ Monorepo，`.git` 位于项目根目录 `My_blog/`，前后端并列：
 ```
 My_blog/
 ├── blog-frontend/
-└── blog-backend/
+└── blog-node/
 ```
 
 ### 分支策略
@@ -153,7 +153,7 @@ git pull origin dev
 git checkout -b feat/backend-post-api
 
 # 2. 开发，提交（多次小提交）
-git add blog-backend/...
+git add blog-node/...
 git commit -m "feat(backend): 新增文章 CRUD 接口"
 
 # 3. 开发完成，合并回 dev
@@ -180,3 +180,48 @@ git branch -d feat/backend-post-api
 ## Skill awareness
 
 - The `cc-frontend-dev` skill (at `.agents/skills/cc-frontend-dev/SKILL.md`) provides Vue 3 / TS conventions. Its UI prohibitions (no glass morphism, no emoji, no neon gradients) are for admin dashboard projects and do **not** apply to this blog — this project deliberately uses liquid-glass effects, Chinese + emoji comments, and decorative visuals.
+
+<!-- gitnexus:start -->
+# GitNexus — Code Intelligence
+
+This project is indexed by GitNexus as **Nebula** (4510 symbols, 10517 relationships, 392 execution flows).
+
+> Index stale? Run `node .gitnexus/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
+
+## Always Do
+
+- **MUST run impact before editing.** Use `impact({target: "symbolName", direction: "upstream"})` or `node .gitnexus/run.cjs impact "symbolName" --direction upstream --repo .`; report callers, processes, and risk. Never substitute grep for graph analysis.
+- **MUST analyze graph changes before committing.** Use `detect_changes({scope: "all"})` (MCP) or `node .gitnexus/run.cjs detect-changes --scope all --repo .` (CLI fallback). `partial: true` or `truncated: true` is not a clean check — a zero means unseen, not unaffected; re-run it. For regression review: `detect_changes({scope: "compare", base_ref: "main"})` or `node .gitnexus/run.cjs detect-changes --scope compare --base-ref "main" --repo .`.
+- MUST warn on HIGH/CRITICAL `risk` pre-edit; never use `riskSharedAxes` to waive a HIGH/CRITICAL `risk` warning. Compare File/symbol: MCP File omits axes; Graph-RAG expands File.
+- **MUST treat `risk: UNKNOWN` as unresolved, not as low.** An empty caller set is not evidence the symbol is unused — it can also mean the callers are not resolvable by the index (plain-object property access, dynamic dispatch, cross-language calls). `impact` pairs `UNKNOWN` with a `riskNote` saying so. Confirm with a text search before treating the symbol as safe to change or delete; do not proceed on the strength of a zero.
+- **MUST use `query({search_query: "concept"})` for concepts/flows, `context({name: "symbolName"})` for a named symbol, or `impact` for blast radius, on read-only callers, dependencies, imports, or execution flow.** Graph first; text search only for empty/`UNKNOWN`/literals.
+- For security review, `explain({target: "fileOrSymbol"})` lists taint findings (source→sink flows; needs `analyze --pdg`).
+
+## Never Do
+
+- NEVER edit a function, class, or method before MCP/CLI impact analysis.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis, and never read `UNKNOWN` as an all-clear — it means the walk could not answer, which is the one verdict that requires confirming by other means.
+- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
+- NEVER commit before MCP/CLI graph change analysis.
+
+## Resources
+
+| Resource | Use for |
+| --- | --- |
+| `gitnexus://repo/Nebula/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/Nebula/clusters` | All functional areas |
+| `gitnexus://repo/Nebula/processes` | All execution flows |
+| `gitnexus://repo/Nebula/process/{name}` | Step-by-step execution trace |
+
+## CLI
+
+| Task | Read this skill file |
+| --- | --- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
+
+<!-- gitnexus:end -->

@@ -5,7 +5,11 @@
       <span class="dashboard-sub">Visitors</span>
     </div>
 
-    <div class="metrics-grid">
+    <div v-if="CONTENT_MODE === 'static'" class="hosted-analytics-note">
+      访问趋势由托管分析服务统计，请在部署平台控制台查看。
+    </div>
+
+    <div v-else class="metrics-grid">
       <div class="metric-card">
         <span class="metric-value">{{ formatNum(totalUv) }}</span>
         <span class="metric-label">总访客</span>
@@ -24,7 +28,7 @@
       </div>
     </div>
 
-    <div class="chart-section">
+    <div v-if="CONTENT_MODE !== 'static'" class="chart-section">
       <div class="chart-header">
         <span class="chart-title">近7天访客</span>
       </div>
@@ -60,6 +64,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { fetchPublicAnalyticsSummary } from '@/api/analytics'
+import { CONTENT_MODE } from '@/api/client'
 
 const totalUv = ref(0)
 const todayUv = ref(0)
@@ -186,6 +191,15 @@ const areaPath = computed(() => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.4rem;
+}
+
+.hosted-analytics-note {
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.6;
 }
 
 .metric-card {

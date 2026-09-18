@@ -1,0 +1,17 @@
+{
+  "name": "starlit-blog-template",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --dir blog-frontend build",
+    "dev:api": "pnpm --dir blog-node dev",
+    "dev:web": "pnpm --dir blog-frontend dev",
+    "type-check": "pnpm --dir blog-frontend type-check"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "hono": "^4.7.11"
+  }
+}

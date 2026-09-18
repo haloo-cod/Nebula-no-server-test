@@ -3,7 +3,7 @@
  * 用于藏宝阁资源上传、文件库管理和公开下载
  */
 
-import { api, BASE_URL, getToken } from './client'
+import { api } from './client'
 
 /** 后端通用文件记录 */
 export interface UploadedFile {
@@ -38,14 +38,45 @@ export function uploadFile(
   file: File,
   onProgress?: (percent: number) => void,
 ): Promise<UploadedFile> {
+  return uploadFileDirectly(file, onProgress)
+}
+
+interface PresignResponse {
+  key: string
+  upload_url: string
+  upload_headers: Record<string, string>
+}
+
+/** 先向 API 获取短期签名，再由浏览器直接把文件写入 R2。 */
+async function uploadFileDirectly(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<UploadedFile> {
+  const presigned = await api.post<PresignResponse>('/api/v1/uploads/presign', {
+    filename: file.name,
+    content_type: file.type || 'application/octet-stream',
+    size: file.size,
+  }, true)
+  await putToSignedUrl(presigned.upload_url, presigned.upload_headers, file, onProgress)
+  return api.post<UploadedFile>('/api/v1/uploads/complete', {
+    key: presigned.key,
+    filename: file.name,
+    content_type: file.type || 'application/octet-stream',
+    size: file.size,
+  }, true)
+}
+
+/** 使用 XMLHttpRequest 保留上传进度显示。 */
+function putToSignedUrl(
+  url: string,
+  headers: Record<string, string>,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    const formData = new FormData()
-    formData.append('file', file)
-
-    xhr.open('POST', `${BASE_URL}/api/v1/files/upload`)
-    const token = getToken()
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.open('PUT', url)
+    for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value)
 
     xhr.upload.addEventListener('progress', (event) => {
       if (event.lengthComputable && onProgress) {
@@ -55,24 +86,14 @@ export function uploadFile(
 
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          resolve(JSON.parse(xhr.responseText) as UploadedFile)
-        } catch {
-          reject(new Error('上传响应解析失败'))
-        }
+        resolve()
         return
       }
-
-      try {
-        const body = JSON.parse(xhr.responseText) as { detail?: string }
-        reject(new Error(body.detail || `上传失败 (${xhr.status})`))
-      } catch {
-        reject(new Error(`上传失败 (${xhr.status})`))
-      }
+      reject(new Error(`R2 上传失败 (${xhr.status})`))
     })
     xhr.addEventListener('error', () => reject(new Error('网络错误，上传失败')))
     xhr.addEventListener('abort', () => reject(new Error('上传已取消')))
-    xhr.send(formData)
+    xhr.send(file)
   })
 }
 

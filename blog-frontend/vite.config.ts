@@ -12,13 +12,11 @@ export default defineConfig({
   // History 路由部署在域名根路径，使用绝对资源地址，避免深层 URL 刷新时相对路径错位。
   base: '/',
   // 局域网开发预览时可恢复下面配置（生产部署不需要）：
-  // server: {
-  //   host: true,
-  //   proxy: {
-  //     '/api': { target: 'http://localhost:8000', changeOrigin: true },
-  //     '/uploads': { target: 'http://localhost:8000', changeOrigin: true },
-  //   },
-  // },
+  server: {
+    proxy: {
+      '/api': { target: 'http://localhost:8787', changeOrigin: true },
+    },
+  },
   plugins: [
     vue(),
     tailwindcss(),

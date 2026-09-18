@@ -15,4 +15,4 @@
 - `md/`：本地 Markdown 文章预览
 - `projects/`：本地 Gallery 项目文档预览
 
-生产环境中的内容和上传资源由 `blog-backend` 管理，通过 API 加载。
+生产环境中的内容和上传资源由 `blog-node` 管理，通过 API 加载。

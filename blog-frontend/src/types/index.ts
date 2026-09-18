@@ -55,7 +55,7 @@ export interface Book {
   author: string // 作者,缺省时可由 EPUB 元数据补全
   description: string // 简介或阅读备注,可能为空串
   cover: string // 封面图 URL,可能为空串;为空时使用占位封面
-  file: string // EPUB 文件访问地址,测试阶段指向 public/books,后续可换后端 URL
+  file: string // EPUB 文件访问地址,可指向 R2 公共 URL 或后端资源接口
 }
 
 /** 相册中的单张照片 */

@@ -309,7 +309,7 @@ onMounted(loadFiles)
     <div class="page-header">
       <div>
         <h2>文件与媒体</h2>
-        <p>统一管理普通文件和图床图片，数据库仍保持分表。</p>
+        <p>统一管理 R2 中的普通文件和图片资源。</p>
       </div>
       <div class="upload-actions">
         <span v-if="uploading" class="upload-status">{{ uploadStatus }}</span>

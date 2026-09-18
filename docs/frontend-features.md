@@ -210,7 +210,7 @@ EPUB 加载、metadata 读取、目录读取和章节显示都是异步操作。
 
 ### 7. 开源部署注意事项
 
-- 不要把真实 EPUB、用户上传图片、SQLite 数据库或生成的 ZIP 归档提交到仓库；
+- 不要把真实 EPUB、用户上传图片、PostgreSQL 数据库凭据或生成的 ZIP 归档提交到仓库；
 - `/uploads/images/` 可以作为公开图片代理；
 - EPUB、普通文件和 ZIP 应继续通过后端鉴权下载，不要在 Nginx 中直接暴露整个 `uploads/` 目录；
 - 生产环境需要配置正确的 `VITE_API_BASE_URL`、CORS 和后端文件目录；

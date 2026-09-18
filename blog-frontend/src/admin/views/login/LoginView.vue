@@ -21,10 +21,18 @@ const form = reactive({
 const loading = ref(false)
 /** 错误信息 */
 const errorMsg = ref('')
+const cmsKey = ref('')
+const cmsMode = ref(true)
+const allowDatabaseMode = import.meta.env.VITE_CONTENT_MODE !== 'static'
 
 /** 提交登录 */
 async function handleLogin() {
-  if (!form.username || !form.password) {
+  if (cmsMode.value) {
+    if (!cmsKey.value) {
+      errorMsg.value = '请输入 CMS 管理密钥'
+      return
+    }
+  } else if (!form.username || !form.password) {
     errorMsg.value = '请输入用户名和密码'
     return
   }
@@ -33,10 +41,8 @@ async function handleLogin() {
   errorMsg.value = ''
 
   try {
-    await authStore.login({
-      username: form.username,
-      password: form.password,
-    })
+    if (cmsMode.value) await authStore.cmsLogin(cmsKey.value)
+    else await authStore.login({ username: form.username, password: form.password })
     if (!authStore.isAdmin) {
       await authStore.logout()
       errorMsg.value = '该账户没有管理员权限'
@@ -64,7 +70,7 @@ async function handleLogin() {
 
       <!-- 表单 -->
       <el-form :model="form" class="login-form" @submit.prevent="handleLogin">
-        <el-form-item>
+        <el-form-item v-if="!cmsMode">
           <el-input
             v-model="form.username"
             label="用户名"
@@ -76,7 +82,7 @@ async function handleLogin() {
           />
         </el-form-item>
 
-        <el-form-item>
+        <el-form-item v-if="!cmsMode">
           <el-input
             v-model="form.password"
             label="密码"
@@ -90,6 +96,25 @@ async function handleLogin() {
             @keyup.enter="handleLogin"
           />
         </el-form-item>
+
+        <el-form-item v-if="cmsMode">
+          <el-input
+            v-model="cmsKey"
+            label="CMS 管理密钥"
+            type="password"
+            placeholder="请输入服务端 CMS_ADMIN_KEY"
+            autocomplete="current-password"
+            size="large"
+            :prefix-icon="Lock"
+            show-password
+            clearable
+            @keyup.enter="handleLogin"
+          />
+        </el-form-item>
+
+        <el-button v-if="allowDatabaseMode" class="mode-toggle" type="primary" link @click="cmsMode = !cmsMode">
+          {{ cmsMode ? '切换到数据库账户登录' : '切换到 CMS 管理密钥登录' }}
+        </el-button>
 
         <!-- 错误提示 -->
         <el-alert

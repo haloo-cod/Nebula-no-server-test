@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { getToken, setToken, clearToken } from '@/api/client'
 import {
   getMe,
+  cmsLogin as cmsLoginApi,
   login as loginApi,
   logoutSession,
   refreshSession,
@@ -41,6 +42,14 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = res.access_token
     setToken(res.access_token)
     // 登录成功后立即获取用户信息
+    await fetchUser()
+  }
+
+  /** 使用 GitHub 内容仓库模式的 CMS 管理密钥建立管理员会话。 */
+  async function cmsLogin(key: string): Promise<void> {
+    const res = await cmsLoginApi({ key })
+    token.value = res.access_token
+    setToken(res.access_token)
     await fetchUser()
   }
 
@@ -107,6 +116,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     isAdmin,
     login,
+    cmsLogin,
     register,
     fetchUser,
     logout,

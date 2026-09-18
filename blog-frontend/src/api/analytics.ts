@@ -1,5 +1,5 @@
 /** 访问统计上报 API。 */
-import { api } from './client'
+import { api, USE_API } from './client'
 
 /** 单日访问趋势。 */
 export interface AnalyticsTrendItem {
@@ -25,10 +25,14 @@ export function recordAnalyticsEvent(data: {
   referrer?: string
   visitor_id?: string
 }): Promise<void> {
+  if (!USE_API) return Promise.resolve()
   return api.post<void>('/api/v1/analytics/events', data)
 }
 
 /** 获取前台访问统计聚合数据。 */
 export function fetchPublicAnalyticsSummary(): Promise<AnalyticsPublicSummary> {
+  if (!USE_API) {
+    return Promise.reject(new Error('静态部署未启用自建统计 API'))
+  }
   return api.get<AnalyticsPublicSummary>('/api/v1/analytics/public-summary')
 }

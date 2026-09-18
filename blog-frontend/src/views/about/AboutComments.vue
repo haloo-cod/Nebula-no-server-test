@@ -191,7 +191,7 @@ const seedComments: CommentItem[] = [
     id: 4,
     author: 'Starlit',
     date: '2026-07-17 22:08',
-    content: '等后端上线后评论也会接入数据库，到时候就不怕刷新丢失啦~',
+    content: '评论服务可按部署需求接入 PostgreSQL、Supabase 或 Giscus。',
     avatarColor: '#ec4899',
   },
 ]

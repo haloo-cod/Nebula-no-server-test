@@ -8,6 +8,19 @@ import App from './App.vue'
 import router from './router'
 import translate from 'i18n-jsautotranslate'
 
+/** 在 Vercel 上启用 Web Analytics；静态站点不再请求自建访问统计 API。 */
+function initHostedAnalytics() {
+  if (import.meta.env.VITE_ANALYTICS_PROVIDER !== 'vercel') return
+  if (document.querySelector('script[data-vercel-analytics]')) return
+  const script = document.createElement('script')
+  script.defer = true
+  script.src = '/_vercel/insights/script.js'
+  script.dataset.vercelAnalytics = 'true'
+  document.head.appendChild(script)
+}
+
+initHostedAnalytics()
+
 const app = createApp(App)
 
 app.use(createPinia())

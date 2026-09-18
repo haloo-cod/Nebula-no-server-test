@@ -14,6 +14,19 @@ const rawCoverFiles = import.meta.glob<string>('../assets/book-covers/*', {
 
 const extractedMetaCache = new Map<string, Promise<ExtractedBookMeta>>()
 
+/** R2 图书清单的单条记录。清单由部署脚本或管理员手动生成。 */
+export interface StaticBookManifestItem {
+  slug: string
+  title: string
+  author?: string
+  description?: string
+  cover?: string
+  key?: string
+  file?: string
+}
+
+let staticBooksPromise: Promise<Book[]> | null = null
+
 const coverByName = Object.fromEntries(
   Object.entries(rawCoverFiles).map(([path, file]) => [
     path
@@ -53,6 +66,64 @@ const books: Book[] = Object.entries(rawBookFiles).map(([path, file]) => ({
   cover: coverAssignments[slugify(path)] || '',
   file,
 }))
+
+/** 将 R2 对象键或完整 URL 转成浏览器可访问的地址。 */
+function resolveStaticBookUrl(value: string | undefined): string {
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+  const base = String(import.meta.env.VITE_R2_PUBLIC_URL || '').replace(/\/+$/, '')
+  const key = value.replace(/^\/+/, '')
+  return base ? `${base}/${key}` : `/${key}`
+}
+
+/**
+ * 读取 public/books/manifest.json 中的 R2 图书清单。
+ * 清单不存在或格式不正确时返回本地预览数据，不影响开发环境启动。
+ */
+export function loadStaticBooks(): Promise<Book[]> {
+  if (staticBooksPromise) return staticBooksPromise
+  staticBooksPromise = (async () => {
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}books/manifest.json`, {
+        headers: { Accept: 'application/json' },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const json: unknown = await response.json()
+      if (!Array.isArray(json)) throw new Error('图书清单必须是数组')
+      const manifestBooks = json.flatMap((item: unknown): Book[] => {
+        if (!item || typeof item !== 'object') return []
+        // manifest 来自公开静态 JSON，先校验对象再按已声明字段读取。
+        const entry = item as Partial<StaticBookManifestItem>
+        if (typeof entry.slug !== 'string' || !entry.slug.trim()) return []
+        const file = resolveStaticBookUrl(
+          typeof entry.file === 'string' ? entry.file : entry.key,
+        )
+        if (!file) return []
+        return [
+          {
+            slug: entry.slug,
+            title: typeof entry.title === 'string' ? entry.title : entry.slug,
+            author: typeof entry.author === 'string' ? entry.author : '',
+            description: typeof entry.description === 'string' ? entry.description : '',
+            cover: resolveStaticBookUrl(entry.cover),
+            file,
+          },
+        ]
+      })
+      return manifestBooks
+    } catch (error) {
+      console.warn('[books] R2 图书清单加载失败,使用本地预览数据:', error)
+      return books
+    }
+  })()
+  return staticBooksPromise
+}
+
+/** 静态模式下按 slug 查找图书。 */
+export async function loadStaticBook(slug: string): Promise<Book | null> {
+  const items = await loadStaticBooks()
+  return items.find((book) => book.slug === slug) || null
+}
 
 /** 获取全部图书列表 */
 export function getBooks(): Book[] {

@@ -132,7 +132,7 @@
           <div v-else-if="error" class="reader-state reader-state-error">
             <p>{{ error }}</p>
             <p class="reader-hint">
-              请确认图书文件仍位于 src/assets/testepub/ 且构建后资源可正常访问。
+              静态部署请确认 manifest.json 中的 R2 地址可访问，并已配置 CORS。
             </p>
           </div>
           <div
@@ -171,6 +171,7 @@ import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchBook } from '@/api/books'
 import { BASE_URL, resolveUrl } from '@/api/client'
+import { loadStaticBook } from '@/data/books'
 import { useUIStore } from '@/stores/ui'
 import type { Book } from '@/types'
 import type EpubBook from 'epubjs/types/book'
@@ -841,14 +842,19 @@ async function loadReader(anchor?: ReaderAnchor) {
   const slug = String(route.params.slug || '')
   const savedAnchor = anchor ?? readBookReadingProgress(slug)
   let currentBook: Book | null = null
+  const staticContentMode =
+    import.meta.env.VITE_CONTENT_MODE === 'static' || import.meta.env.VITE_USE_API === 'false'
 
-  // 优先从 API 获取
-  try {
-    const apiBook = await fetchBook(slug)
-    currentBook = { ...apiBook, cover: resolveUrl(apiBook.cover) }
-  } catch {
-    // 阅读内容统一走后端公开阅读接口，避免通过前端静态资源绕过访问控制。
-    currentBook = null
+  // 静态部署直接从 R2 清单读取；开发/服务器部署继续使用后端 API。
+  if (staticContentMode) {
+    currentBook = await loadStaticBook(slug)
+  } else {
+    try {
+      const apiBook = await fetchBook(slug)
+      currentBook = { ...apiBook, cover: resolveUrl(apiBook.cover) }
+    } catch {
+      currentBook = null
+    }
   }
 
   if (!currentBook) {
@@ -882,10 +888,13 @@ async function loadReader(anchor?: ReaderAnchor) {
     const { default: ePub } = await import('epubjs')
     if (!isCurrentRun(runId)) return
 
-    // 使用目录型 EPUB 入口，让 epub.js 按需读取章节、样式和图片。
+    // R2 使用 EPUB 文件直链；后端模式使用目录型资源接口按需读取章节。
     // 直接下载 ArrayBuffer 会在生产环境的大 EPUB 上一次性解压全部资源，
     // 容易造成内存峰值和图片/文本加载中断。
-    const epubRootUrl = `${BASE_URL}/api/v1/books/${encodeURIComponent(slug)}/read-resource/`
+    const directEpubUrl = /^https?:\/\//i.test(currentBook.file)
+    const epubRootUrl = staticContentMode || directEpubUrl
+      ? currentBook.file
+      : `${BASE_URL}/api/v1/books/${encodeURIComponent(slug)}/read-resource/`
     epubBook = ePub(epubRootUrl)
     const navigation = await epubBook.loaded.navigation
     tocItems.value = flattenToc(navigation.toc)

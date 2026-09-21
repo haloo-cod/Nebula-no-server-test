@@ -3,7 +3,7 @@
   "buildCommand": "cd blog-frontend && pnpm build",
   "outputDirectory": "blog-frontend/dist",
   "functions": {
-    "api/[...path].ts": {
+    "api/[...path].js": {
       "maxDuration": 30
     }
   },

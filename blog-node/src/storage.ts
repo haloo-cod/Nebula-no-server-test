@@ -1,9 +1,21 @@
 /** Cloudflare R2 的 S3 兼容存储适配层。 */
-import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  type GetObjectCommandOutput,
+  S3Client,
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { config, r2Enabled } from './config.js'
 
 let client: S3Client | undefined
+
+/** AWS SDK 的运行时客户端支持 send；部分 Vercel 构建器解析的 SDK 类型未暴露继承成员。 */
+interface S3CommandClient {
+  send<TOutput = unknown>(command: object): Promise<TOutput>
+}
 
 function getClient(): S3Client {
   if (!r2Enabled()) throw new Error('R2 未配置')
@@ -18,6 +30,11 @@ function getClient(): S3Client {
   return client
 }
 
+function sendS3Command<TOutput = unknown>(command: object): Promise<TOutput> {
+  // 运行时对象仍是 AWS SDK S3Client；此窄化只兼容 Vercel 的类型解析差异。
+  return (getClient() as unknown as S3CommandClient).send<TOutput>(command)
+}
+
 export function normalizeKey(value: string): string {
   return value.replaceAll('\\', '/').replace(/^\/+/, '')
 }
@@ -28,7 +45,7 @@ export function publicUrl(key: string): string {
 
 export async function putObject(key: string, body: Uint8Array, contentType: string): Promise<string> {
   const normalized = normalizeKey(key)
-  await getClient().send(
+  await sendS3Command(
     new PutObjectCommand({
       Bucket: config.r2BucketName,
       Key: normalized,
@@ -41,7 +58,7 @@ export async function putObject(key: string, body: Uint8Array, contentType: stri
 
 /** 从 R2 读取对象内容，供服务端解析 EPUB 等需要二次处理的文件。 */
 export async function getObject(key: string): Promise<Uint8Array> {
-  const result = await getClient().send(
+  const result = await sendS3Command<GetObjectCommandOutput>(
     new GetObjectCommand({ Bucket: config.r2BucketName, Key: normalizeKey(key) }),
   )
   if (!result.Body) throw new Error('R2 对象没有内容')
@@ -70,7 +87,7 @@ export async function createUploadUrl(
 export async function objectExists(key: string): Promise<boolean> {
   if (!key || !r2Enabled()) return false
   try {
-    await getClient().send(new HeadObjectCommand({ Bucket: config.r2BucketName, Key: normalizeKey(key) }))
+    await sendS3Command(new HeadObjectCommand({ Bucket: config.r2BucketName, Key: normalizeKey(key) }))
     return true
   } catch {
     return false
@@ -79,5 +96,5 @@ export async function objectExists(key: string): Promise<boolean> {
 
 export async function deleteObject(key: string): Promise<void> {
   if (!key || !r2Enabled()) return
-  await getClient().send(new DeleteObjectCommand({ Bucket: config.r2BucketName, Key: normalizeKey(key) }))
+  await sendS3Command(new DeleteObjectCommand({ Bucket: config.r2BucketName, Key: normalizeKey(key) }))
 }

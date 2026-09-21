@@ -24,11 +24,6 @@ export interface TokenResponse {
   token_type: string
 }
 
-/** GitHub 内容仓库模式的 CMS 管理员登录响应。 */
-export interface CmsLoginRequest {
-  key: string
-}
-
 /** 注册响应；开启邮箱验证时不会返回登录令牌。 */
 export interface RegisterResponse {
   access_token: string | null
@@ -51,11 +46,6 @@ export interface UserInfo {
 /** 管理员登录 */
 export function login(data: LoginRequest): Promise<TokenResponse> {
   return api.post<TokenResponse>('/api/v1/auth/login', data)
-}
-
-/** 使用服务端配置的 CMS 管理密钥登录；密钥只作为请求体发送给同域 API。 */
-export function cmsLogin(data: CmsLoginRequest): Promise<TokenResponse> {
-  return api.post<TokenResponse>('/api/v1/auth/cms-login', data)
 }
 
 /** 用户名、邮箱和密码注册 */

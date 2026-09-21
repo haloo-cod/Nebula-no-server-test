@@ -6,6 +6,11 @@
  */
 import { githubContentEnabled, config } from './config.js'
 
+export interface GithubCommitIdentity {
+  name: string
+  email: string
+}
+
 export interface GithubFile {
   path: string
   sha: string
@@ -67,8 +72,8 @@ function decodeBase64(value: string): string {
 }
 
 /** 在 Node 与 Edge 运行时都可用的 UTF-8 Base64 编码。 */
-function encodeBase64(value: string): string {
-  const bytes = new TextEncoder().encode(value)
+function encodeBase64(value: string | Uint8Array): string {
+  const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
   return globalThis.btoa(binary)
@@ -127,15 +132,19 @@ export async function listGithubFiles(path: string): Promise<GithubDirectoryEntr
 /** 写入或更新仓库文件，并返回新的提交信息。 */
 export async function putGithubFile(
   path: string,
-  content: string,
+  content: string | Uint8Array,
   message: string,
   sha?: string,
+  identity?: GithubCommitIdentity | null,
 ): Promise<GithubCommitResponse> {
+  const owner = config.githubRepository.split('/')[0] || 'github-owner'
+  const commitIdentity = identity || { name: owner, email: `${owner}@users.noreply.github.com` }
   const payload = {
     message,
     content: encodeBase64(content),
     branch: config.githubBranch,
-    committer: { name: config.githubCommitterName, email: config.githubCommitterEmail },
+    author: commitIdentity,
+    committer: commitIdentity,
     ...(sha ? { sha } : {}),
   }
   return githubRequest<GithubCommitResponse>(repositoryPath(path), {
@@ -146,7 +155,9 @@ export async function putGithubFile(
 }
 
 /** 删除仓库文件。 */
-export async function deleteGithubFile(path: string, message: string, sha: string): Promise<void> {
+export async function deleteGithubFile(path: string, message: string, sha: string, identity?: GithubCommitIdentity | null): Promise<void> {
+  const owner = config.githubRepository.split('/')[0] || 'github-owner'
+  const commitIdentity = identity || { name: owner, email: `${owner}@users.noreply.github.com` }
   await githubRequest(repositoryPath(path), {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
@@ -154,7 +165,8 @@ export async function deleteGithubFile(path: string, message: string, sha: strin
       message,
       sha,
       branch: config.githubBranch,
-      committer: { name: config.githubCommitterName, email: config.githubCommitterEmail },
+      author: commitIdentity,
+      committer: commitIdentity,
     }),
   })
 }
@@ -171,12 +183,21 @@ export async function getGithubJson<T>(path: string, fallback: T): Promise<T> {
 }
 
 /** 序列化并写入 JSON 内容文件。 */
-export async function putGithubJson(path: string, value: unknown, message: string): Promise<void> {
+export async function putGithubJson(path: string, value: unknown, message: string, identity?: GithubCommitIdentity | null): Promise<void> {
   const current = await getGithubFile(path)
-  await putGithubFile(path, `${JSON.stringify(value, null, 2)}\n`, message, current?.sha)
+  await putGithubFile(path, `${JSON.stringify(value, null, 2)}\n`, message, current?.sha, identity)
 }
 
 /** 返回内容文件在仓库中的完整路径。 */
 export function contentPath(path: string): string {
   return `${config.githubContentRoot}/${normalizeContentPath(path)}`
+}
+
+
+/** 返回内容仓库中的公开原始地址，用于没有 R2 时的小型媒体文件。 */
+export function githubRawUrl(path: string): string {
+  return `https://raw.githubusercontent.com/${config.githubRepository}/${encodeURIComponent(config.githubBranch)}/${normalizeContentPath(path)
+    .split('/')
+    .map((part) => encodeURIComponent(part))
+    .join('/')}`
 }

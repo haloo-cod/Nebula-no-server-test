@@ -49,9 +49,9 @@
         </div>
       </div>
       <div v-if="!auth.isLoggedIn" class="detail-inner__comment-login">
-        <span>登录后参与评论</span>
+        <span>使用 GitHub 登录后参与评论</span>
         <RouterLink :to="loginLocation">登录</RouterLink>
-        <RouterLink :to="registerLocation">注册</RouterLink>
+        <RouterLink :to="loginLocation">使用 GitHub 登录</RouterLink>
       </div>
       <form v-else class="detail-inner__comment-form" @submit.prevent="submitComment">
         <div class="detail-inner__comment-author">
@@ -65,7 +65,7 @@
           placeholder="写下你的想法..."
         ></textarea>
         <div class="detail-inner__comment-form-footer">
-          <span class="detail-inner__comment-hint">已登录账户可发表评论</span>
+          <span class="detail-inner__comment-hint">GitHub 登录用户可发表评论</span>
           <button
             class="detail-inner__comment-submit"
             type="submit"
@@ -94,10 +94,6 @@ const props = defineProps<{
 const route = useRoute()
 const auth = useAuthStore()
 const loginLocation = computed(() => ({ path: '/login', query: { redirect: route.fullPath } }))
-const registerLocation = computed(() => ({
-  path: '/register',
-  query: { redirect: route.fullPath },
-}))
 
 // ============ 评论列表 ============
 

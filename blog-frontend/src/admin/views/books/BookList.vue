@@ -14,7 +14,7 @@ import {
   RefreshRight,
   Upload,
 } from '@element-plus/icons-vue'
-import { api, BASE_URL, getToken, resolveUrl } from '@/api/client'
+import { api, BASE_URL, getMediaStorage, getToken, resolveUrl } from '@/api/client'
 import type { BookSort } from '@/api/books'
 import { useAdminTable } from '@/admin/composables/useAdminTable'
 import { downloadWithProgress } from '@/utils/download'
@@ -319,6 +319,11 @@ function handleArchiveCommand(command: string | number) {
 /** 创建选中图书的 ZIP，可选择仅生成归档或生成后立即下载。 */
 async function downloadSelectedZip() {
   if (selectedBooks.value.length === 0) return
+  // GitHub 无数据库模式没有后台 ZIP 任务队列；逐本下载由浏览器直接读取 R2。
+  if (import.meta.env.VITE_CONTENT_MODE !== 'static') {
+    for (const book of selectedBooks.value) await downloadBook(book)
+    return
+  }
   showArchiveDialog.value = false
   downloading.value = true
   downloadProgress.value = 0
@@ -434,6 +439,7 @@ async function handleCoverUpload(event: Event) {
   try {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('storage', getMediaStorage())
     const token = getToken()
     const response = await fetch(`${BASE_URL}/api/v1/images/upload`, {
       method: 'POST',

@@ -3,7 +3,7 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Download, Refresh, Upload } from '@element-plus/icons-vue'
-import { api, BASE_URL, getToken, resolveUrl } from '@/api/client'
+import { api, BASE_URL, getMediaStorage, getToken, resolveUrl, setMediaStorage, type MediaStorage } from '@/api/client'
 import { uploadFiles, type UploadedFile } from '@/api/files'
 import { downloadWithProgress } from '@/utils/download'
 
@@ -18,6 +18,7 @@ interface UploadedImage {
   height: number
   mime_type: string
   created_at: string
+  storage?: MediaStorage
 }
 
 /** 图书 ZIP 打包历史。 */
@@ -48,6 +49,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const downloading = ref(false)
 const downloadProgress = ref(0)
 const downloadStatus = ref('')
+const imageStorage = ref<MediaStorage>(getMediaStorage())
 
 function formatSize(size: number): string {
   if (size < 1024) return `${size} B`
@@ -96,6 +98,11 @@ async function loadImages() {
 }
 
 async function loadArchives() {
+  // GitHub 无数据库模式没有服务端 ZIP 任务，保持空归档列表即可。
+  if (import.meta.env.VITE_CONTENT_MODE !== 'static') {
+    archives.value = []
+    return
+  }
   loading.value = true
   try {
     const response = await api.get<{ items: BookDownloadJob[]; total: number }>(
@@ -148,6 +155,7 @@ async function handleUpload(event: Event) {
           uploadStatus.value = `正在上传 ${file.name}`
           const formData = new FormData()
           formData.append('file', file)
+          formData.append('storage', imageStorage.value)
           const response = await fetch(`${BASE_URL}/api/v1/images/upload`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${getToken() ?? ''}` },
@@ -309,7 +317,7 @@ onMounted(loadFiles)
     <div class="page-header">
       <div>
         <h2>文件与媒体</h2>
-        <p>统一管理 R2 中的普通文件和图片资源。</p>
+        <p>统一管理普通文件和图片资源；图片可选择 GitHub 或 R2。</p>
       </div>
       <div class="upload-actions">
         <span v-if="uploading" class="upload-status">{{ uploadStatus }}</span>
@@ -318,6 +326,10 @@ onMounted(loadFiles)
           >{{ downloadStatus }} {{ downloadProgress }}%</span
         >
         <el-progress v-if="downloading" :percentage="downloadProgress" :stroke-width="6" />
+        <el-radio-group v-if="activeTab === 'images'" v-model="imageStorage" size="small" @change="setMediaStorage(imageStorage)">
+          <el-radio-button value="r2">R2</el-radio-button>
+          <el-radio-button value="github">GitHub</el-radio-button>
+        </el-radio-group>
         <el-button
           type="primary"
           :icon="Upload"

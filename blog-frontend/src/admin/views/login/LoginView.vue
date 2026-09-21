@@ -3,60 +3,34 @@
  * 管理后台登录页
  * 全屏布局,不使用 AdminLayout,视觉参考 art-design-pro 的登录页风格
  */
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { User, Lock } from '@element-plus/icons-vue'
-
-const router = useRouter()
-const authStore = useAuthStore()
-
-/** 表单数据 */
-const form = reactive({
-  username: '',
-  password: '',
-})
+import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { BASE_URL } from '@/api/client'
 
 /** 加载状态 */
 const loading = ref(false)
 /** 错误信息 */
 const errorMsg = ref('')
-const cmsKey = ref('')
-const cmsMode = ref(true)
-const allowDatabaseMode = import.meta.env.VITE_CONTENT_MODE !== 'static'
+const route = useRoute()
 
-/** 提交登录 */
-async function handleLogin() {
-  if (cmsMode.value) {
-    if (!cmsKey.value) {
-      errorMsg.value = '请输入 CMS 管理密钥'
-      return
-    }
-  } else if (!form.username || !form.password) {
-    errorMsg.value = '请输入用户名和密码'
-    return
-  }
-
-  loading.value = true
-  errorMsg.value = ''
-
-  try {
-    if (cmsMode.value) await authStore.cmsLogin(cmsKey.value)
-    else await authStore.login({ username: form.username, password: form.password })
-    if (!authStore.isAdmin) {
-      await authStore.logout()
-      errorMsg.value = '该账户没有管理员权限'
-      return
-    }
-    // 登录成功,跳转到管理后台首页
-    router.push('/admin/dashboard')
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : '登录失败'
-    errorMsg.value = msg
-  } finally {
-    loading.value = false
-  }
+const oauthErrors: Record<string, string> = {
+  github_oauth_state: 'GitHub 登录状态已失效，请重新登录。',
+  github_oauth_token: 'GitHub 没有返回有效登录令牌，请重试。',
+  github_oauth_forbidden: '只有内容仓库拥有者才能进入后台。',
+  github_oauth_email: 'GitHub 账号没有可用的已验证邮箱。',
+  github_oauth_network: 'GitHub OAuth 请求失败，请检查 Node 服务网络和终端日志。',
 }
+
+onMounted(() => {
+  const code = typeof route.query.error === 'string' ? route.query.error : ''
+  errorMsg.value = oauthErrors[code] || ''
+})
+
+/** 跳转到服务端 GitHub OAuth 授权页。 */
+function loginWithGithub() {
+  window.location.href = `${BASE_URL}/api/v1/auth/github?redirect=${encodeURIComponent('/admin/dashboard')}`
+}
+
 </script>
 
 <template>
@@ -68,53 +42,10 @@ async function handleLogin() {
         <p class="login-subtitle">请登录以继续</p>
       </div>
 
-      <!-- 表单 -->
-      <el-form :model="form" class="login-form" @submit.prevent="handleLogin">
-        <el-form-item v-if="!cmsMode">
-          <el-input
-            v-model="form.username"
-            label="用户名"
-            placeholder="请输入用户名"
-            autocomplete="username"
-            size="large"
-            :prefix-icon="User"
-            clearable
-          />
-        </el-form-item>
-
-        <el-form-item v-if="!cmsMode">
-          <el-input
-            v-model="form.password"
-            label="密码"
-            type="password"
-            placeholder="请输入密码"
-            autocomplete="current-password"
-            size="large"
-            :prefix-icon="Lock"
-            show-password
-            clearable
-            @keyup.enter="handleLogin"
-          />
-        </el-form-item>
-
-        <el-form-item v-if="cmsMode">
-          <el-input
-            v-model="cmsKey"
-            label="CMS 管理密钥"
-            type="password"
-            placeholder="请输入服务端 CMS_ADMIN_KEY"
-            autocomplete="current-password"
-            size="large"
-            :prefix-icon="Lock"
-            show-password
-            clearable
-            @keyup.enter="handleLogin"
-          />
-        </el-form-item>
-
-        <el-button v-if="allowDatabaseMode" class="mode-toggle" type="primary" link @click="cmsMode = !cmsMode">
-          {{ cmsMode ? '切换到数据库账户登录' : '切换到 CMS 管理密钥登录' }}
-        </el-button>
+      <p class="login-hint">仅限 GitHub 仓库拥有者登录</p>
+      <el-button class="github-login-button" type="primary" plain :loading="loading" @click="loginWithGithub">
+          使用 GitHub 账号登录
+      </el-button>
 
         <!-- 错误提示 -->
         <el-alert
@@ -126,18 +57,6 @@ async function handleLogin() {
           class="login-error"
         />
 
-        <el-form-item>
-          <el-button
-            type="primary"
-            size="large"
-            :loading="loading"
-            class="login-btn"
-            @click="handleLogin"
-          >
-            登录
-          </el-button>
-        </el-form-item>
-      </el-form>
     </div>
   </div>
 </template>
@@ -183,19 +102,20 @@ async function handleLogin() {
   font-size: 14px;
 }
 
-.login-form {
-  width: 100%;
+.login-hint {
+  margin: -12px 0 24px;
+  color: #71717a;
+  font-size: 13px;
+  text-align: center;
 }
 
 .login-error {
   margin-bottom: 16px;
 }
 
-.login-btn {
+.github-login-button {
   width: 100%;
-  height: 44px;
-  border-radius: 10px;
-  font-size: 16px;
+  margin-bottom: 12px;
 }
 
 @media (max-width: 480px) {

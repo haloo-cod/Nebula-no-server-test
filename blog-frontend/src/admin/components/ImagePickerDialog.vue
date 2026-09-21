@@ -3,7 +3,7 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
-import { api, BASE_URL, getToken, resolveUrl } from '@/api/client'
+import { api, BASE_URL, getMediaStorage, getToken, resolveUrl, setMediaStorage, type MediaStorage } from '@/api/client'
 
 /** 图床图片记录。 */
 export interface PickerImage {
@@ -15,6 +15,7 @@ export interface PickerImage {
   height: number
   mime_type: string
   created_at: string
+  storage?: MediaStorage
 }
 
 const props = defineProps<{
@@ -36,6 +37,7 @@ const uploadInput = ref<HTMLInputElement | null>(null)
 const keyword = ref('')
 const selectedId = ref<number | null>(null)
 const selectedIds = ref<number[]>([])
+const storage = ref<MediaStorage>(getMediaStorage())
 
 const filteredImages = computed(() => {
   const query = keyword.value.trim().toLowerCase()
@@ -110,6 +112,7 @@ async function handleUpload(event: Event) {
   try {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('storage', storage.value)
     const response = await fetch(`${BASE_URL}/api/v1/images/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${getToken() ?? ''}` },
@@ -122,7 +125,7 @@ async function handleUpload(event: Event) {
     }
     const image = (await response.json()) as PickerImage
     await loadImages()
-    selectedId.value = image.id
+      selectedId.value = image.id
     ElMessage.success('图片上传成功，已选中')
   } catch (err: unknown) {
     ElMessage.error(err instanceof Error ? err.message : '图片上传失败')
@@ -155,6 +158,10 @@ watch(
   >
     <div class="picker-toolbar">
       <el-input v-model="keyword" clearable placeholder="搜索文件名" />
+      <el-radio-group v-model="storage" size="small" @change="setMediaStorage(storage)">
+        <el-radio-button value="r2">R2</el-radio-button>
+        <el-radio-button value="github">GitHub</el-radio-button>
+      </el-radio-group>
       <el-button type="primary" plain :icon="Upload" :loading="uploading" @click="openUpload">
         上传新图片
       </el-button>

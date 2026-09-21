@@ -37,7 +37,7 @@
     </div>
     <div v-else class="comments-login-prompt">
       <RouterLink :to="{ path: '/login', query: { redirect: $route.fullPath } }"
-        >登录后参与评论</RouterLink
+        >使用 GitHub 登录后参与评论</RouterLink
       >
     </div>
 

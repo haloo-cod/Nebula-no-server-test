@@ -1,7 +1,7 @@
 /** JWT 认证；令牌字段与前端现有 API 契约保持一致。 */
 import bcrypt from 'bcryptjs'
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import { SignJWT, jwtVerify } from 'jose'
+import { createHash, randomBytes } from 'node:crypto'
+import { CompactEncrypt, SignJWT, compactDecrypt, jwtVerify } from 'jose'
 import type { Context, MiddlewareHandler } from 'hono'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { config, githubContentEnabled } from './config.js'
@@ -14,6 +14,18 @@ export interface UserClaims {
   id: number
   is_admin: boolean
   is_active: boolean
+  githubToken?: string
+  githubLogin?: string
+  githubName?: string
+  githubEmail?: string
+}
+
+/** GitHub OAuth 管理员身份，用于签发会话和归属内容提交。 */
+export interface GithubIdentity {
+  token: string
+  login: string
+  name: string
+  email: string
 }
 
 export interface AppEnv {
@@ -28,13 +40,80 @@ export async function createAccessToken(userId: number): Promise<string> {
     .sign(secret)
 }
 
-/** 为无数据库 CMS 发行短期管理员令牌。 */
-export async function createCmsAccessToken(): Promise<string> {
-  return new SignJWT({ type: 'cms-admin' })
+function githubSessionKey(): Uint8Array {
+  return createHash('sha256').update(config.secretKey).digest()
+}
+
+/** 将 GitHub OAuth token 加密进短期会话令牌，避免浏览器可读明文 PAT。 */
+export async function createGithubAccessToken(identity: GithubIdentity): Promise<string> {
+  const payload = JSON.stringify({
+    type: 'github-admin',
+    token: identity.token,
+    login: identity.login,
+    name: identity.name,
+    email: identity.email,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 60 * 60,
+  })
+  return new CompactEncrypt(new TextEncoder().encode(payload))
+    .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
+    .encrypt(githubSessionKey())
+}
+
+/** 解密并校验 GitHub OAuth 管理员会话。 */
+export async function verifyGithubAccessToken(token: string): Promise<GithubIdentity | null> {
+  try {
+    const { plaintext } = await compactDecrypt(token, githubSessionKey())
+    const value = JSON.parse(new TextDecoder().decode(plaintext)) as Partial<GithubIdentity> & { type?: string; exp?: number }
+    if (
+      value.type !== 'github-admin' ||
+      !value.token ||
+      !value.login ||
+      !value.email ||
+      !value.exp ||
+      value.exp < Math.floor(Date.now() / 1000)
+    ) return null
+    return { token: value.token, login: value.login, name: value.name || value.login, email: value.email }
+  } catch {
+    return null
+  }
+}
+
+/** 创建有时效的 OAuth state，防止回调被跨站伪造。 */
+export async function createGithubOAuthState(redirect: string): Promise<string> {
+  return new SignJWT({ type: 'github-oauth-state', redirect })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('12h')
+    .setExpirationTime('10m')
     .sign(secret)
+}
+
+/** 校验 OAuth state 并取回安全的站内跳转地址。 */
+export async function verifyGithubOAuthState(state: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(state, secret)
+    if (payload.type !== 'github-oauth-state' || typeof payload.redirect !== 'string') return null
+    return payload.redirect.startsWith('/') && !payload.redirect.startsWith('//') ? payload.redirect : '/'
+  } catch {
+    return null
+  }
+}
+
+/** 读取请求中的 GitHub 管理员会话令牌。 */
+export async function githubSessionFromRequest(c: Context<AppEnv>): Promise<GithubIdentity | null> {
+  const authorization = c.req.header('authorization') || ''
+  if (authorization.startsWith('Bearer ')) return verifyGithubAccessToken(authorization.slice(7))
+  const cookieToken = getCookie(c, 'github_admin_token')
+  return cookieToken ? verifyGithubAccessToken(cookieToken) : null
+}
+
+/** 从当前请求中读取 GitHub 身份，用于 GitHub 提交 author/committer。 */
+export async function githubIdentityFromRequest(c: Context<AppEnv>): Promise<GithubIdentity | null> {
+  const session = await githubSessionFromRequest(c)
+  if (session) return session
+  const user = c.get('user')
+  if (!user?.githubToken || !user.githubLogin || !user.githubEmail) return null
+  return { token: user.githubToken, login: user.githubLogin, name: user.githubName || user.githubLogin, email: user.githubEmail }
 }
 
 /** 创建只存储摘要的刷新令牌，避免数据库泄露后令牌可直接使用。 */
@@ -93,32 +172,12 @@ export async function verifyAccessToken(token: string): Promise<number | null> {
   }
 }
 
-/** 校验无数据库 CMS 管理员令牌。 */
-export async function verifyCmsAccessToken(token: string): Promise<boolean> {
-  try {
-    const { payload } = await jwtVerify(token, secret)
-    return payload.type === 'cms-admin'
-  } catch {
-    return false
-  }
-}
-
-/** 比较 CMS 管理密钥；密钥只从服务端环境变量读取。 */
-export function matchesCmsAdminKey(value: string): boolean {
-  const configured = config.cmsAdminKey
-  if (!configured || !value || configured.length !== value.length) return false
-  return timingSafeEqual(new TextEncoder().encode(configured), new TextEncoder().encode(value))
-}
-
 /** 判断请求是否带有 CMS 管理凭据。 */
 export async function isCmsAdminRequest(c: Context<AppEnv>): Promise<boolean> {
-  const directKey = c.req.header('x-cms-admin-key') || ''
-  if (matchesCmsAdminKey(directKey)) return true
   const authorization = c.req.header('authorization') || ''
   if (!authorization.startsWith('Bearer ')) return false
   const token = authorization.slice(7)
-  if (matchesCmsAdminKey(token)) return true
-  return verifyCmsAccessToken(token)
+  return Boolean(await verifyGithubAccessToken(token))
 }
 
 export function hashIp(value: string): string {
@@ -127,8 +186,9 @@ export function hashIp(value: string): string {
 
 async function authenticate(c: Context<AppEnv>): Promise<Response | null> {
   // CMS 模式的管理员令牌不依赖 users 表，适合纯 GitHub + R2 部署。
-  if (await isCmsAdminRequest(c)) {
-    c.set('user', { id: 0, is_admin: true, is_active: true })
+  const session = await githubSessionFromRequest(c)
+  if (session) {
+    c.set('user', { id: 0, is_admin: true, is_active: true, githubToken: session.token, githubLogin: session.login, githubName: session.name, githubEmail: session.email })
     return null
   }
   // GitHub 内容模式没有 users 表；无效的 CMS 凭据直接返回 401，不能继续访问数据库。

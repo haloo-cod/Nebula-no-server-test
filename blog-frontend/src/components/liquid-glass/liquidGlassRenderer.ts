@@ -684,7 +684,7 @@ const imageCache = new Map<string, Promise<ImageSource>>()
 
 /**
  * Image() 回退路径：onload → img.decode() 延迟解码,避免同步光栅化阻塞主线程。
- * url 应已带 _cors=1 后缀。
+ * url 应已带版本号的 CORS 查询参数。
  */
 function loadImageFallback(corsUrl: string): Promise<HTMLImageElement> {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -708,14 +708,14 @@ function loadImageFallback(corsUrl: string): Promise<HTMLImageElement> {
  * 优先用 createImageBitmap(fetch blob):解码在浏览器内部线程完成,不阻塞主线程。
  * 不支持 createImageBitmap 或 fetch 失败时回退到 Image + decode()。
  *
- * 加 _cors=1 query 参数使 URL 与 CSS background-image 缓存 key 不同,
- * 避免浏览器用无 CORS 头的缓存响应导致 crossOrigin 请求失败。
+ * 加带版本号的 query 参数使 URL 与 CSS background-image 缓存 key 不同，
+ * 避免浏览器复用 CORS 配置生效前的无头缓存响应。
  */
 export function loadImage(url: string): Promise<ImageSource> {
   const cached = imageCache.get(url)
   if (cached) return cached
 
-  const corsUrl = url + (url.includes('?') ? '&' : '?') + '_cors=1'
+  const corsUrl = url + (url.includes('?') ? '&' : '?') + '_cors=1&_cors_v=2'
 
   let loader: Promise<ImageSource>
 
@@ -723,7 +723,7 @@ export function loadImage(url: string): Promise<ImageSource> {
     // createImageBitmap 路径：fetch → blob → 后台线程解码
     // 指定 imageOrientation:'flipY' 让 bitmap 上下翻转,
     // 这样 uploadTexture 时对 ImageBitmap 不设 UNPACK_FLIP_Y 就能得到正确的 WebGL 纹理朝向。
-    loader = fetch(corsUrl, { mode: 'cors' })
+    loader = fetch(corsUrl, { mode: 'cors', cache: 'no-store' })
       .then((res) => res.blob())
       .then((blob) => createImageBitmap(blob, { imageOrientation: 'flipY' }))
       .catch(() => loadImageFallback(corsUrl)) // 任意环节失败则回退

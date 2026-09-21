@@ -140,7 +140,8 @@ interface DayGroup {
 const dayGroups = computed<DayGroup[]>(() => {
   const map = new Map<string, Moment[]>()
   for (const m of allLoaded.value) {
-    const key = m.date.slice(0, 10)
+    // 兼容旧内容仓库中缺失 date 的记录，避免单条坏数据阻塞整个说说页。
+    const key = typeof m.date === 'string' && m.date ? m.date.slice(0, 10) : '未设置日期'
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(m)
   }

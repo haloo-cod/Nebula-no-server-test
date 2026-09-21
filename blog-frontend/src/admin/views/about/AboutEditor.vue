@@ -8,7 +8,7 @@ import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
-import { api, BASE_URL, getToken, resolveUrl } from '@/api/client'
+import { api, BASE_URL, getMediaStorage, getToken, resolveUrl } from '@/api/client'
 import ImagePickerDialog, { type PickerImage } from '@/admin/components/ImagePickerDialog.vue'
 import EmojiPicker from '@/admin/components/EmojiPicker.vue'
 
@@ -86,7 +86,7 @@ function initVditor(content: string) {
     cache: { enable: false },
     value: content,
     upload: {
-      url: `${BASE_URL}/api/v1/images/upload`,
+      url: `${BASE_URL}/api/v1/images/upload?storage=${getMediaStorage()}`,
       headers: { Authorization: `Bearer ${getToken() ?? ''}` },
       fieldName: 'file',
       max: 10 * 1024 * 1024,

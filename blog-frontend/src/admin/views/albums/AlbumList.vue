@@ -6,7 +6,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, ArrowLeft } from '@element-plus/icons-vue'
-import { api, getToken, resolveUrl, BASE_URL } from '@/api/client'
+import { api, getMediaStorage, getToken, resolveUrl, BASE_URL } from '@/api/client'
 import ImagePickerDialog, { type PickerImage } from '@/admin/components/ImagePickerDialog.vue'
 
 /** 相册列表项 */
@@ -170,6 +170,7 @@ async function handlePhotoUpload(event: Event) {
       try {
         const formData = new FormData()
         formData.append('file', file)
+        formData.append('storage', getMediaStorage())
         const token = getToken()
         const uploadResp = await fetch(`${BASE_URL}/api/v1/images/upload`, {
           method: 'POST',

@@ -118,7 +118,7 @@ const routes: RouteRecordRaw[] = [
     path: '/register',
     name: 'user-register',
     meta: { hideChrome: true },
-    component: () => import('../views/auth/UserRegister.vue'),
+    redirect: (to) => ({ path: '/login', query: to.query }),
   },
   {
     path: '/auth/callback',

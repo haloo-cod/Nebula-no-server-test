@@ -1,5 +1,5 @@
 /** Cloudflare R2 的 S3 兼容存储适配层。 */
-import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { config, r2Enabled } from './config.js'
 
@@ -37,6 +37,15 @@ export async function putObject(key: string, body: Uint8Array, contentType: stri
     }),
   )
   return publicUrl(normalized)
+}
+
+/** 从 R2 读取对象内容，供服务端解析 EPUB 等需要二次处理的文件。 */
+export async function getObject(key: string): Promise<Uint8Array> {
+  const result = await getClient().send(
+    new GetObjectCommand({ Bucket: config.r2BucketName, Key: normalizeKey(key) }),
+  )
+  if (!result.Body) throw new Error('R2 对象没有内容')
+  return new Uint8Array(await result.Body.transformToByteArray())
 }
 
 /** 为浏览器直传 R2 创建短期 PUT 地址，避免大文件经过 Serverless 函数。 */

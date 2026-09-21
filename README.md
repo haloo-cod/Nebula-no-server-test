@@ -14,7 +14,7 @@
 - WebGL 液态玻璃效果，桌面端默认启用，移动端默认使用 CSS 毛玻璃
 - EPUB 阅读器、访问统计和管理员后台
 - GitHub Contents API 内容仓库与 Cloudflare R2 对象存储
-- 可选 PostgreSQL（评论、账号、互动统计等高频数据）
+- 可选 PostgreSQL（账号、互动统计等高频数据；GitHub 模式的评论写入内容仓库）
 
 ## 目录结构
 
@@ -43,9 +43,9 @@ cp .env.example .env
 pnpm dev
 ```
 
-Node API 默认地址为 `http://localhost:8787`，健康检查地址为 `http://localhost:8787/health`。纯内容模式只需要配置 `GITHUB_CONTENT_TOKEN`、`GITHUB_REPOSITORY` 和 `CMS_ADMIN_KEY`；GitHub Token 仅存在于 Node 服务端环境变量。
+Node API 默认地址为 `http://localhost:8787`，健康检查地址为 `http://localhost:8787/health`。纯内容模式需要配置 `GITHUB_CONTENT_TOKEN`、`GITHUB_REPOSITORY`、GitHub OAuth 应用变量和 `SECRET_KEY`；后台只允许内容仓库拥有者通过 GitHub OAuth 登录。GitHub Token 仅存在于 Node 服务端环境变量。
 
-如果启用了账号、评论或自建统计，再填写托管 PostgreSQL 的 `DATABASE_URL`，并执行 `pnpm db:migrate`。这部分数据不会写入内容仓库。
+如果启用了普通账号或自建统计，再填写托管 PostgreSQL 的 `DATABASE_URL`，并执行 `pnpm db:migrate`。GitHub 内容模式的评论会写入内容仓库，不需要数据库。
 
 ### 前端
 
@@ -68,15 +68,15 @@ pnpm test:unit
 
 ## 资源与数据
 
-生产环境的小型内容由 Node API 通过 GitHub Contents API 提交到内容仓库；EPUB、图片、视频和其他大文件写入 R2。前端 `src/assets/` 中保留了按用途划分的空目录，方便开发者放入本地 UI 预览资源。
+生产环境的小型内容由 Node API 通过 GitHub Contents API 提交到内容仓库；图片可在后台选择写入 GitHub 或 R2，EPUB、视频和其他大文件写入 R2。前端 `src/assets/` 中保留了按用途划分的空目录，方便开发者放入本地 UI 预览资源。
 
 生产数据存储位置：
 
 - `content/`：GitHub 内容仓库中的 Markdown 和 JSON
 - `blog-node/`：Node API、GitHub Contents、可选数据库和 R2 适配层
 - GitHub：文章、友链、资料、相册、背景、轮播、藏宝阁和图书元数据
-- Cloudflare R2：图片、EPUB、视频和其他上传文件
-- 可选 PostgreSQL：用户、评论、会话和自建统计明细
+- Cloudflare R2：可选图片、EPUB、视频和其他上传文件
+- 可选 PostgreSQL：用户、会话和自建统计明细（GitHub 模式评论写入仓库 JSON）
 
 这些目录均不应提交到公开仓库。仓库中的 `.env.example` 只提供配置模板，不包含真实密钥。
 

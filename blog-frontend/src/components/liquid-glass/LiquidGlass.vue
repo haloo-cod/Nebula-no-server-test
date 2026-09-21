@@ -338,7 +338,8 @@ function refreshRenderer() {
   const [gw, gh] = uniforms.glassSize
   if (gw >= 1 && gh >= 1) {
     hasValidLayout = true
-    void syncBackgroundWithTheme(props.theme)
+    if (currentBgUl.value) void syncBackgroundWithTheme(props.theme)
+    else if (instanceId) markInstanceReady(instanceId, true)
   }
 }
 
@@ -400,7 +401,13 @@ function updateTrailUniforms() {
 
 async function syncBackgroundWithTheme(_theme: LiquidGlassTheme, forceReveal = false) {
   const url = currentBgUl.value
-  if (!url || !instanceId) return
+  if (!instanceId) return
+  if (!url) {
+    renderedBackgroundUrl = ''
+    const [gw, gh] = uniforms.glassSize
+    markInstanceReady(instanceId, gw >= 1 && gh >= 1)
+    return
+  }
   const syncToken = ++backgroundSyncToken
 
   // 先隐藏 canvas（允许 reveal 时）
@@ -523,6 +530,12 @@ onMounted(() => {
   // 加载纹理并标记实例为就绪
   void (async () => {
     const initialSyncToken = ++backgroundSyncToken
+    // 没有背景图时不应构造空 URL 的请求；纯色背景仍可正常绘制玻璃。
+    if (!bgUrl) {
+      const [gw, gh] = uniforms.glassSize
+      markInstanceReady(instanceId, gw >= 1 && gh >= 1)
+      return
+    }
     let textureReady = hasTexture(bgUrl)
     markInstanceReady(instanceId, false)
     if (!textureReady) {
@@ -565,7 +578,8 @@ onMounted(() => {
     // 永远停留在“尺寸为 0 时未 ready”的状态，canvas 也就不会 reveal。
     if (!hasValidLayout) {
       hasValidLayout = true
-      void syncBackgroundWithTheme(props.theme)
+      if (currentBgUl.value) void syncBackgroundWithTheme(props.theme)
+      else markInstanceReady(instanceId, true)
     }
   })
   resizeObserver.observe(container)
@@ -584,6 +598,8 @@ onMounted(() => {
 // 背景图切换时重新加载纹理
 watch([currentBgUl, () => currentBackground.value.mediaType], ([newUrl]) => {
   if (newUrl && instanceId) {
+    void syncBackgroundWithTheme(props.theme)
+  } else if (instanceId) {
     void syncBackgroundWithTheme(props.theme)
   }
 })

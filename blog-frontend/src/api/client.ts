@@ -22,6 +22,18 @@ export const BASE_URL =
       ? 'http://localhost:8787'
       : ''
 const TOKEN_KEY = 'blog_admin_token'
+const MEDIA_STORAGE_KEY = 'blog_media_storage'
+
+/** 图片上传目标；由媒体库选择器设置，编辑器直传会沿用该偏好。 */
+export type MediaStorage = 'github' | 'r2'
+
+export function getMediaStorage(): MediaStorage {
+  return localStorage.getItem(MEDIA_STORAGE_KEY) === 'r2' ? 'r2' : 'github'
+}
+
+export function setMediaStorage(value: MediaStorage): void {
+  localStorage.setItem(MEDIA_STORAGE_KEY, value)
+}
 
 /**
  * API 开关：通过环境变量 VITE_USE_API 控制

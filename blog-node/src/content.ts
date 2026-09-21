@@ -13,6 +13,7 @@ import {
   putGithubFile,
   putGithubJson,
 } from './github.js'
+import type { GithubCommitIdentity } from './github.js'
 
 export interface ContentPost {
   id: number
@@ -243,7 +244,7 @@ export async function getContentPost(slug: string): Promise<ContentPost | null> 
 }
 
 /** 创建或更新文章 Markdown，并返回兼容旧 API 的记录。 */
-export async function saveContentPost(input: Partial<ContentPost>): Promise<ContentPost> {
+export async function saveContentPost(input: Partial<ContentPost>, identity?: GithubCommitIdentity | null): Promise<ContentPost> {
   const slug = contentSlug(String(input.slug || input.title || ''), 'post')
   const path = contentPath(`posts/${slug}.md`)
   const current = await getGithubFile(path)
@@ -262,17 +263,17 @@ export async function saveContentPost(input: Partial<ContentPost>): Promise<Cont
     created_at: '',
     updated_at: '',
   }
-  await putGithubFile(path, postMarkdown(post, post.content_md), `${current ? '更新' : '创建'}文章：${post.title}`, current?.sha)
+  await putGithubFile(path, postMarkdown(post, post.content_md), `${current ? '更新' : '创建'}文章：${post.title}`, current?.sha, identity)
   return post
 }
 
 /** 删除文章 Markdown。 */
-export async function deleteContentPost(slug: string): Promise<boolean> {
+export async function deleteContentPost(slug: string, identity?: GithubCommitIdentity | null): Promise<boolean> {
   const safeSlug = contentSlug(slug, '')
   const path = contentPath(`posts/${safeSlug}.md`)
   const current = await getGithubFile(path)
   if (!current) return false
-  await deleteGithubFile(path, `删除文章：${safeSlug}`, current.sha)
+  await deleteGithubFile(path, `删除文章：${safeSlug}`, current.sha, identity)
   return true
 }
 
@@ -317,7 +318,7 @@ export async function getContentGallery(slug: string): Promise<ContentGalleryPro
 }
 
 /** 创建或更新展览项目 Markdown。 */
-export async function saveContentGallery(input: Partial<ContentGalleryProject>): Promise<ContentGalleryProject> {
+export async function saveContentGallery(input: Partial<ContentGalleryProject>, identity?: GithubCommitIdentity | null): Promise<ContentGalleryProject> {
   const slug = contentSlug(String(input.slug || input.title || ''), 'project')
   const path = contentPath(`gallery/${slug}.md`)
   const current = await getGithubFile(path)
@@ -350,17 +351,18 @@ export async function saveContentGallery(input: Partial<ContentGalleryProject>):
     ),
     `${current ? '更新' : '创建'}展览项目：${project.title}`,
     current?.sha,
+    identity,
   )
   return project
 }
 
 /** 删除展览项目 Markdown。 */
-export async function deleteContentGallery(slug: string): Promise<boolean> {
+export async function deleteContentGallery(slug: string, identity?: GithubCommitIdentity | null): Promise<boolean> {
   const safeSlug = contentSlug(slug, '')
   const path = contentPath(`gallery/${safeSlug}.md`)
   const current = await getGithubFile(path)
   if (!current) return false
-  await deleteGithubFile(path, `删除展览项目：${safeSlug}`, current.sha)
+  await deleteGithubFile(path, `删除展览项目：${safeSlug}`, current.sha, identity)
   return true
 }
 
@@ -370,6 +372,6 @@ export function getContentJson<T>(path: string, fallback: T): Promise<T> {
 }
 
 /** 写入 JSON 内容并保留格式化结果，方便直接在 GitHub 中审阅。 */
-export function saveContentJson(path: string, value: unknown, message: string): Promise<void> {
-  return putGithubJson(contentPath(path), value, message)
+export function saveContentJson(path: string, value: unknown, message: string, identity?: GithubCommitIdentity | null): Promise<void> {
+  return putGithubJson(contentPath(path), value, message, identity)
 }

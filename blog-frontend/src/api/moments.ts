@@ -35,13 +35,13 @@ export async function fetchMoments(
   // 转为前端 Moment 类型（图片 URL 补全）
   const items: Moment[] = res.items.map((m) => ({
     id: m.id,
-    date: m.date,
-    content: m.content,
-    mood: m.mood,
+    date: typeof m.date === 'string' ? m.date : '',
+    content: typeof m.content === 'string' ? m.content : '',
+    mood: typeof m.mood === 'string' ? m.mood : '',
     moodText: m.mood_text || '',
-    tags: m.tags,
-    images: m.images.map(resolveUrl),
-    likes: m.likes,
+    tags: Array.isArray(m.tags) ? m.tags : [],
+    images: Array.isArray(m.images) ? m.images.map(resolveUrl) : [],
+    likes: Number.isFinite(Number(m.likes)) ? Number(m.likes) : 0,
     commentCount: m.comments?.length || 0,
   }))
   return { items, total: res.total }

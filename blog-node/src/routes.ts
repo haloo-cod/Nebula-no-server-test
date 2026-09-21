@@ -3,8 +3,8 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { z } from 'zod'
 import { marked } from 'marked'
-import { createAccessToken, createCmsAccessToken, createSession, hashIp, hashPassword, requireAdmin, refreshSession, revokeSession, requireAuth as authMiddleware, verifyPassword, type AppEnv } from './auth.js'
-import { githubContentEnabled, config, r2Enabled, resolveStorageUrl } from './config.js'
+import { createAccessToken, createSession, hashIp, hashPassword, requireAdmin, refreshSession, revokeSession, requireAuth as authMiddleware, verifyPassword, type AppEnv } from './auth.js'
+import { githubContentEnabled, config, r2ConfigIssues, r2Enabled, resolveStorageUrl } from './config.js'
 import { query } from './db.js'
 import { clientIp, json, parseLimit, parsePage } from './http.js'
 import { deleteObject, normalizeKey, putObject } from './storage.js'
@@ -636,7 +636,7 @@ api.delete('/api/v1/files/:id', requireAdmin, async (c) => {
 })
 
 async function uploadObject(c: Context, prefix: string): Promise<Response> {
-  if (!r2Enabled()) return json(c, { detail: 'R2 未配置，无法在 Node Serverless 版本上传文件' }, 503)
+  if (!r2Enabled()) return json(c, { detail: `R2 配置无效：${r2ConfigIssues().join('；')}` }, 503)
   const body = await c.req.parseBody()
   const file = body.file
   if (!(file instanceof File)) return json(c, { detail: '缺少上传文件' }, 422)

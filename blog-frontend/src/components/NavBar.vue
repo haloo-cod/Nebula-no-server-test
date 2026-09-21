@@ -57,9 +57,8 @@
     <!-- 右侧功能区（仅桌面端可见） -->
     <div class="nav-actions">
       <template v-if="!auth.isLoggedIn">
-        <button class="auth-btn" type="button" @click="router.push('/login')">登录</button>
-        <button class="auth-btn auth-btn--primary" type="button" @click="router.push('/register')">
-          注册
+        <button class="auth-btn auth-btn--primary" type="button" @click="router.push('/login')">
+          使用 GitHub 登录
         </button>
       </template>
       <template v-else>
@@ -268,23 +267,31 @@
       <ul v-if="menuOpen" class="mobile-menu">
         <li class="mobile-auth-row">
           <template v-if="!auth.isLoggedIn">
-            <button class="mobile-auth-btn" type="button" @click="goToAuth('/login')">登录</button>
             <button
               class="mobile-auth-btn mobile-auth-btn--primary"
               type="button"
-              @click="goToAuth('/register')"
+              @click="goToAuth('/login')"
             >
-              注册
+              使用 GitHub 登录
             </button>
           </template>
-          <button
-            v-else
-            class="mobile-auth-btn mobile-auth-btn--primary"
-            type="button"
-            @click="logoutUser"
-          >
-            退出 {{ auth.user?.display_name || auth.user?.username }}
-          </button>
+          <template v-else>
+            <button
+              v-if="auth.isAdmin"
+              class="mobile-auth-btn"
+              type="button"
+              @click="goToAdmin"
+            >
+              后台
+            </button>
+            <button
+              class="mobile-auth-btn mobile-auth-btn--primary"
+              type="button"
+              @click="logoutUser"
+            >
+              退出 {{ auth.user?.display_name || auth.user?.username }}
+            </button>
+          </template>
         </li>
         <li class="mobile-menu-divider" aria-hidden="true"></li>
         <li v-for="item in navItems" :key="item.path">
@@ -590,9 +597,15 @@ function closeMenu() {
 }
 
 /** 跳转前台认证页面并关闭移动菜单。 */
-function goToAuth(path: '/login' | '/register') {
+function goToAuth(path: '/login') {
   closeMenu()
   void router.push(path)
+}
+
+/** 仅仓库拥有者可见的后台入口。 */
+function goToAdmin() {
+  closeMenu()
+  void router.push('/admin')
 }
 
 /** 退出前台账户并关闭移动菜单。 */

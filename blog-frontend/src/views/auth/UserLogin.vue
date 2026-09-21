@@ -1,38 +1,11 @@
 <script setup lang="ts">
 /** 前台统一账户登录页。 */
-import { computed, reactive, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { BASE_URL } from '@/api/client'
-import { useAuthStore } from '@/stores/auth'
 
-const auth = useAuthStore()
 const route = useRoute()
-const router = useRouter()
-const loading = ref(false)
-const error = ref('')
-const passwordFormOpen = ref(false)
-const passwordVisible = ref(false)
-const form = reactive({ username: '', password: '' })
 const verifiedMessage = computed(() => route.query.verified === '1')
-
-/** 使用用户名或邮箱登录。 */
-async function submit() {
-  if (!form.username.trim() || !form.password) {
-    error.value = '请输入用户名或邮箱和密码'
-    return
-  }
-  loading.value = true
-  error.value = ''
-  try {
-    await auth.login(form)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
-    await router.replace(redirect)
-  } catch (err: unknown) {
-    error.value = err instanceof Error ? err.message : '登录失败'
-  } finally {
-    loading.value = false
-  }
-}
 
 /** 由后端发起 GitHub OAuth，回调后通过 Refresh Cookie 恢复会话。 */
 function loginWithGithub() {
@@ -73,68 +46,7 @@ function loginWithGithub() {
         </svg>
         <span>使用 GitHub 登录</span>
       </button>
-      <p class="oauth-note"><span class="status-dot"></span>使用公开资料创建或恢复账户</p>
-
-      <button
-        class="password-toggle"
-        type="button"
-        :aria-expanded="passwordFormOpen"
-        @click="passwordFormOpen = !passwordFormOpen"
-      >
-        <span class="password-toggle__label">
-          <span class="password-toggle__icon" aria-hidden="true">⌁</span>
-          使用账户密码登录
-        </span>
-        <span class="password-toggle__action" aria-hidden="true">
-          {{ passwordFormOpen ? '收起' : '展开' }}
-          <span class="chevron" :class="{ 'chevron--open': passwordFormOpen }">⌄</span>
-        </span>
-      </button>
-
-      <template v-if="passwordFormOpen">
-        <form class="auth-form" @submit.prevent="submit">
-          <div class="field-group">
-            <label for="login-identity">用户名或邮箱</label>
-            <input
-              id="login-identity"
-              v-model="form.username"
-              autocomplete="username"
-              placeholder="name@example.com"
-              required
-            />
-          </div>
-          <div class="field-group">
-            <label for="login-password">密码</label>
-            <div class="password-field">
-              <input
-                id="login-password"
-                v-model="form.password"
-                :type="passwordVisible ? 'text' : 'password'"
-                autocomplete="current-password"
-                placeholder="输入你的密码"
-                required
-              />
-              <button
-                class="password-visibility"
-                type="button"
-                :aria-label="passwordVisible ? '隐藏密码' : '显示密码'"
-                @click="passwordVisible = !passwordVisible"
-              >
-                {{ passwordVisible ? '隐藏' : '显示' }}
-              </button>
-            </div>
-          </div>
-          <p v-if="error" class="error-text" role="alert">{{ error }}</p>
-          <button class="primary-btn" type="submit" :disabled="loading">
-            <span>{{ loading ? '正在进入...' : '进入博客' }}</span>
-            <span class="button-arrow" aria-hidden="true">→</span>
-          </button>
-        </form>
-      </template>
-
-      <p class="switch-text">
-        还没有账户？<RouterLink to="/register">创建一个新的账户</RouterLink>
-      </p>
+      <p class="oauth-note"><span class="status-dot"></span>仅限内容仓库拥有者使用 GitHub OAuth 登录</p>
       <p class="privacy-note">登录即表示你同意以友善的方式使用这里的内容。</p>
     </section>
 
@@ -317,6 +229,24 @@ h1 {
   display: grid;
   gap: 18px;
   margin-top: 24px;
+}
+
+.admin-login-note {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+  color: rgba(231, 227, 218, 0.68);
+  font-size: 14px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.admin-login-note p {
+  margin: 0;
+}
+
+.admin-login-note .primary-btn {
+  text-decoration: none;
 }
 
 .github-btn--featured {

@@ -10,7 +10,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
-import { api, getToken, resolveUrl, BASE_URL } from '@/api/client'
+import { api, getMediaStorage, getToken, resolveUrl, BASE_URL } from '@/api/client'
 import ImagePickerDialog, { type PickerImage } from '@/admin/components/ImagePickerDialog.vue'
 import EmojiPicker from '@/admin/components/EmojiPicker.vue'
 
@@ -121,7 +121,7 @@ function initVditor(content = '') {
     value: content,
     upload: {
       // 图片上传配置：直接对接后端图床 API（需要完整 URL，Vditor 不走前端 proxy）
-      url: `${BASE_URL}/api/v1/images/upload`,
+      url: `${BASE_URL}/api/v1/images/upload?storage=${getMediaStorage()}`,
       headers: { Authorization: `Bearer ${getToken() ?? ''}` },
       fieldName: 'file',
       max: 10 * 1024 * 1024, // 10MB

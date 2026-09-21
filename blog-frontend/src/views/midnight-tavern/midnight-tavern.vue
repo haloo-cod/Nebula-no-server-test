@@ -7,7 +7,7 @@
     <div class="tavern-auth" aria-label="账号入口">
       <template v-if="auth.initialized && !auth.isLoggedIn">
         <button class="auth-btn" type="button" @click="goToLogin">登录</button>
-        <button class="auth-btn auth-btn--primary" type="button" @click="goToRegister">注册</button>
+        <button class="auth-btn auth-btn--primary" type="button" @click="goToLogin">GitHub 登录</button>
       </template>
       <template v-else-if="auth.initialized">
         <span class="auth-user">{{ auth.user?.display_name || auth.user?.username }}</span>
@@ -175,10 +175,6 @@ const router = useRouter()
 
 function goToLogin() {
   void router.push({ path: '/login', query: { redirect: '/midnight-tavern' } })
-}
-
-function goToRegister() {
-  void router.push({ path: '/register', query: { redirect: '/midnight-tavern' } })
 }
 
 async function logoutUser() {

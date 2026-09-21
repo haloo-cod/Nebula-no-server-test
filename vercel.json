@@ -2,6 +2,11 @@
   "installCommand": "pnpm install && cd blog-frontend && pnpm install --frozen-lockfile && cd ../blog-node && pnpm install --frozen-lockfile",
   "buildCommand": "cd blog-frontend && pnpm build",
   "outputDirectory": "blog-frontend/dist",
+  "functions": {
+    "api/[...path].ts": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
